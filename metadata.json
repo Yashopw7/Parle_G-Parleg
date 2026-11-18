@@ -1,0 +1,8 @@
+{
+  "name": "Tapfolio — Dynamic NFC & QR Business Cards",
+  "description": "Multi-business NFC digital business card platform with permanent dynamic QR destinations, shop owner self-setup, guest Wi-Fi sharing, and instant vCard downloads.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

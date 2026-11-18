@@ -1,0 +1,259 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global primitive helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 3 && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isValidString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    function isValidCustomLinkItem(item) {
+      return item is map
+        && item.keys().hasAll(['id', 'label', 'url'])
+        && item.keys().hasOnly(['id', 'label', 'url'])
+        && isValidString(item.id, 64)
+        && item.id.size() >= 1
+        && isValidString(item.label, 60)
+        && item.label.size() >= 1
+        && isValidString(item.url, 500)
+        && item.url.size() >= 1;
+    }
+
+    function isValidCustomLinks(links) {
+      return links is list
+        && links.size() <= 7
+        && (links.size() <= 0 || isValidCustomLinkItem(links[0]))
+        && (links.size() <= 1 || isValidCustomLinkItem(links[1]))
+        && (links.size() <= 2 || isValidCustomLinkItem(links[2]))
+        && (links.size() <= 3 || isValidCustomLinkItem(links[3]))
+        && (links.size() <= 4 || isValidCustomLinkItem(links[4]))
+        && (links.size() <= 5 || isValidCustomLinkItem(links[5]))
+        && (links.size() <= 6 || isValidCustomLinkItem(links[6]));
+    }
+
+    function countConfiguredButtons(data) {
+      return (data.googleReviewUrl.size() > 0 ? 1 : 0)
+        + (data.whatsapp.size() > 0 ? 1 : 0)
+        + (data.instagram.size() > 0 ? 1 : 0)
+        + (data.facebook.size() > 0 ? 1 : 0)
+        + (data.website.size() > 0 ? 1 : 0)
+        + data.customLinks.size();
+    }
+
+    function isValidCard(data, cardId) {
+      return data.keys().hasAll([
+          'cardId', 'creatorUid', 'ownerUid', 'isPublished', 'qrVersion',
+          'businessName', 'ownerName', 'logoUrl', 'description', 'address',
+          'phone', 'email', 'googleReviewUrl', 'whatsapp', 'instagram',
+          'facebook', 'website', 'customLinks', 'wifiSsid', 'wifiPassword',
+          'wifiIsOpen', 'accentColor', 'hasOwnerPin', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'cardId', 'creatorUid', 'ownerUid', 'isPublished', 'qrVersion',
+          'businessName', 'ownerName', 'logoUrl', 'description', 'address',
+          'phone', 'email', 'googleReviewUrl', 'whatsapp', 'instagram',
+          'facebook', 'website', 'customLinks', 'wifiSsid', 'wifiPassword',
+          'wifiIsOpen', 'accentColor', 'hasOwnerPin', 'createdAt', 'updatedAt'
+        ])
+        && data.cardId == cardId
+        && isValidString(data.creatorUid, 128) && data.creatorUid.size() >= 1
+        && (data.ownerUid == null || (data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128))
+        && data.isPublished is bool
+        && data.qrVersion is int && data.qrVersion >= 1 && data.qrVersion <= 10000
+        && isValidString(data.businessName, 100)
+        && isValidString(data.ownerName, 80)
+        && isValidString(data.logoUrl, 300000)
+        && isValidString(data.description, 500)
+        && isValidString(data.address, 240)
+        && isValidString(data.phone, 40)
+        && isValidString(data.email, 120)
+        && isValidString(data.googleReviewUrl, 500)
+        && isValidString(data.whatsapp, 120)
+        && isValidString(data.instagram, 160)
+        && isValidString(data.facebook, 200)
+        && isValidString(data.website, 300)
+        && isValidCustomLinks(data.customLinks)
+        && countConfiguredButtons(data) <= 7
+        && isValidString(data.wifiSsid, 64)
+        && isValidString(data.wifiPassword, 128)
+        && data.wifiIsOpen is bool
+        && isValidString(data.accentColor, 20)
+        && data.hasOwnerPin is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCardPrivate(data, cardId) {
+      return data.keys().hasAll([
+          'cardId', 'creatorUid', 'ownerUid', 'setupPinHash',
+          'ownerPinHash', 'submittedPinHash', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'cardId', 'creatorUid', 'ownerUid', 'setupPinHash',
+          'ownerPinHash', 'submittedPinHash', 'createdAt', 'updatedAt'
+        ])
+        && data.cardId == cardId
+        && isValidString(data.creatorUid, 128) && data.creatorUid.size() >= 1
+        && (data.ownerUid == null || (data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128))
+        && isValidString(data.setupPinHash, 128)
+        && isValidString(data.ownerPinHash, 128)
+        && isValidString(data.submittedPinHash, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Connection validation document
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /cards/{cardId} {
+      allow get: if isValidId(cardId) && (
+        resource == null
+        || resource.data.isPublished == true
+        || resource.data.ownerUid == null
+        || (isSignedIn() && (resource.data.ownerUid == request.auth.uid || resource.data.creatorUid == request.auth.uid))
+      );
+
+      allow list: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid
+        || resource.data.creatorUid == request.auth.uid
+      );
+
+      allow create: if isSignedIn()
+        && isValidId(cardId)
+        && isValidCard(incoming(), cardId)
+        && incoming().creatorUid == request.auth.uid
+        && (incoming().ownerUid == request.auth.uid || incoming().ownerUid == null)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/cardPrivate/$(cardId))
+        && getAfter(/databases/$(database)/documents/cardPrivate/$(cardId)).data.creatorUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/cardPrivate/$(cardId)).data.ownerUid == incoming().ownerUid;
+
+      allow update: if isSignedIn()
+        && isValidId(cardId)
+        && isValidCard(incoming(), cardId)
+        && incoming().cardId == existing().cardId
+        && incoming().creatorUid == existing().creatorUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Shop owner claims an unclaimed card with verified Setup PIN
+          (
+            existing().ownerUid == null
+            && incoming().ownerUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['ownerUid', 'updatedAt'])
+            && getAfter(/databases/$(database)/documents/cardPrivate/$(cardId)).data.ownerUid == request.auth.uid
+          )
+          ||
+          // Action 2: Authorized owner edits profile, links, Wi-Fi, or publish status (never alters cardId/qrVersion)
+          (
+            existing().ownerUid == request.auth.uid
+            && incoming().ownerUid == existing().ownerUid
+            && incoming().qrVersion == existing().qrVersion
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'isPublished', 'businessName', 'ownerName', 'logoUrl', 'description',
+              'address', 'phone', 'email', 'googleReviewUrl', 'whatsapp',
+              'instagram', 'facebook', 'website', 'customLinks', 'wifiSsid',
+              'wifiPassword', 'wifiIsOpen', 'accentColor', 'hasOwnerPin', 'updatedAt'
+            ])
+          )
+          ||
+          // Action 3: Authorized owner explicitly regenerates QR version
+          (
+            existing().ownerUid == request.auth.uid
+            && incoming().ownerUid == existing().ownerUid
+            && incoming().qrVersion == existing().qrVersion + 1
+            && incoming().diff(existing()).affectedKeys().hasOnly(['qrVersion', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isSignedIn()
+        && isValidId(cardId)
+        && (
+          existing().ownerUid == request.auth.uid
+          || (existing().ownerUid == null && existing().creatorUid == request.auth.uid)
+        );
+    }
+
+    match /cardPrivate/{cardId} {
+      allow get: if isValidId(cardId)
+        && isSignedIn()
+        && resource != null
+        && (
+          (resource.data.ownerUid != null && resource.data.ownerUid == request.auth.uid)
+          || (resource.data.ownerUid == null && resource.data.creatorUid == request.auth.uid)
+        );
+
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && isValidId(cardId)
+        && isValidCardPrivate(incoming(), cardId)
+        && incoming().creatorUid == request.auth.uid
+        && (incoming().ownerUid == request.auth.uid || incoming().ownerUid == null)
+        && incoming().submittedPinHash == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/cards/$(cardId));
+
+      allow update: if isSignedIn()
+        && isValidId(cardId)
+        && isValidCardPrivate(incoming(), cardId)
+        && incoming().cardId == existing().cardId
+        && incoming().creatorUid == existing().creatorUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Claim unclaimed card using matching Setup PIN hash
+          (
+            existing().ownerUid == null
+            && incoming().ownerUid == request.auth.uid
+            && existing().setupPinHash.size() == 64
+            && incoming().submittedPinHash == existing().setupPinHash
+            && incoming().setupPinHash == existing().setupPinHash
+            && incoming().ownerPinHash == existing().ownerPinHash
+            && incoming().diff(existing()).affectedKeys().hasOnly(['ownerUid', 'submittedPinHash', 'updatedAt'])
+            && getAfter(/databases/$(database)/documents/cards/$(cardId)).data.ownerUid == request.auth.uid
+          )
+          ||
+          // Action 2: Authorized owner updates their optional edit PIN lock
+          (
+            existing().ownerUid == request.auth.uid
+            && incoming().ownerUid == existing().ownerUid
+            && incoming().setupPinHash == existing().setupPinHash
+            && incoming().submittedPinHash == existing().submittedPinHash
+            && incoming().diff(existing()).affectedKeys().hasOnly(['ownerPinHash', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isSignedIn()
+        && isValidId(cardId)
+        && (
+          existing().ownerUid == request.auth.uid
+          || (existing().ownerUid == null && existing().creatorUid == request.auth.uid)
+        );
+    }
+  }
+}

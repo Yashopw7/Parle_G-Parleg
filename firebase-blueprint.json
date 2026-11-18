@@ -1,0 +1,206 @@
+{
+  "entities": {
+    "BusinessCard": {
+      "title": "BusinessCard",
+      "description": "Public digital business card profile bound to a permanent NFC and QR identity.",
+      "type": "object",
+      "properties": {
+        "cardId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Permanent unique card identifier used in /c/{cardId}."
+        },
+        "creatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the user who provisioned this card."
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the authorized business owner, or null while unclaimed."
+        },
+        "isPublished": {
+          "type": "boolean",
+          "description": "Whether the card is live and visible to anyone scanning the QR or NFC."
+        },
+        "qrVersion": {
+          "type": "integer",
+          "description": "Version number for the QR code, incremented only when regeneration is explicitly requested."
+        },
+        "businessName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "ownerName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "logoUrl": {
+          "type": "string",
+          "maxLength": 300000
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "googleReviewUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "whatsapp": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "instagram": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "facebook": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "website": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "customLinks": {
+          "type": "array",
+          "description": "Up to 7 custom links (subject to total <= 7 public buttons across all configured links)."
+        },
+        "wifiSsid": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "wifiPassword": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "wifiIsOpen": {
+          "type": "boolean"
+        },
+        "accentColor": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "hasOwnerPin": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "cardId",
+        "creatorUid",
+        "ownerUid",
+        "isPublished",
+        "qrVersion",
+        "businessName",
+        "ownerName",
+        "logoUrl",
+        "description",
+        "address",
+        "phone",
+        "email",
+        "googleReviewUrl",
+        "whatsapp",
+        "instagram",
+        "facebook",
+        "website",
+        "customLinks",
+        "wifiSsid",
+        "wifiPassword",
+        "wifiIsOpen",
+        "accentColor",
+        "hasOwnerPin",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CardPrivateAuth": {
+      "title": "CardPrivateAuth",
+      "description": "Private setup PIN hash and owner edit PIN hash isolated from public card reads.",
+      "type": "object",
+      "properties": {
+        "cardId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "creatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ownerUid": {
+          "type": "string"
+        },
+        "setupPinHash": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "ownerPinHash": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "submittedPinHash": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "cardId",
+        "creatorUid",
+        "ownerUid",
+        "setupPinHash",
+        "ownerPinHash",
+        "submittedPinHash",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/cards/{cardId}": {
+      "schema": {
+        "$ref": "#/entities/BusinessCard"
+      },
+      "description": "Permanent public and owner-editable business card documents."
+    },
+    "/cardPrivate/{cardId}": {
+      "schema": {
+        "$ref": "#/entities/CardPrivateAuth"
+      },
+      "description": "Private PIN hashes and ownership claim credentials, never readable by public users."
+    }
+  }
+}
